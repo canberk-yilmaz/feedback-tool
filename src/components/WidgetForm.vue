@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { Ref } from 'vue';
-import CloseButton from './CloseButton.vue';
-import html2canvas from 'html2canvas';
-import LoadingWidget from './LoadingWidget.vue';
-import ToastNotification from './ToastNotification.vue';
+import { Ref } from "vue";
+import CloseButton from "./CloseButton.vue";
+import html2canvas from "html2canvas";
+import LoadingWidget from "./LoadingWidget.vue";
+import ToastNotification from "./ToastNotification.vue";
 import {
   SendFeedbackBodyInterface,
   GitHubCreateIssueInterface,
-} from '../interfaces/feedback';
+} from "../interfaces/feedback";
 
 const config = useRuntimeConfig();
 
@@ -16,20 +16,20 @@ const props = defineProps<{
     id: string;
     title: string;
     icon: string;
-    type: 'bug' | 'request' | 'feedback';
+    type: "bug" | "request" | "feedback";
   };
 }>();
 
 const emit = defineEmits<{
-  (event: 'back', ...args: any[]): void;
-  (event: 'success', ...args: any[]): void;
-  (event: 'feedback_uid', ...args: any[]): void;
+  (event: "back", ...args: any[]): void;
+  (event: "success", ...args: any[]): void;
+  (event: "feedback_uid", ...args: any[]): void;
 }>();
 
 const image: Ref<string | undefined> = ref(undefined);
-const message: Ref<string> = ref('');
+const message: Ref<string> = ref("");
 const isTakingScreenshot = ref(false);
-const error = ref('');
+const error = ref("");
 const loading = ref(false);
 const showError = ref(false);
 
@@ -37,10 +37,10 @@ async function handleTakeScreenshot(): Promise<void> {
   isTakingScreenshot.value = true;
 
   const canvas = await html2canvas(
-    document.querySelector('html') as HTMLElement
+    document.querySelector("html") as HTMLElement
   );
 
-  const base64Image = canvas.toDataURL('image/png');
+  const base64Image = canvas.toDataURL("image/png");
   isTakingScreenshot.value = false;
 
   image.value = base64Image;
@@ -48,13 +48,34 @@ async function handleTakeScreenshot(): Promise<void> {
 
 async function createFeedback(body: SendFeedbackBodyInterface) {
   try {
-    // TODO: Create Feedback
+    const res = await fetch(
+      `https://${config.public.PROJECT_ID}.api.deskree.com/api/v1/rest/collections/feedbacks`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("Something went wrong");
+    }
+
+    const { data } = await res.json();
+
+    if (data !== undefined) {
+      emit("feedback_uid", data.uid);
+    } else {
+      throw new Error("Couldn't create feedback");
+    }
   } catch (e: any) {
     console.error(e);
     showError.value = true;
     error.value = e;
   } finally {
-    if (!showError.value && body.type !== 'bug') {
+    if (!showError.value && body.type !== "bug") {
       image.value = undefined;
     }
   }
@@ -62,7 +83,18 @@ async function createFeedback(body: SendFeedbackBodyInterface) {
 
 async function createIssueOnGitHub(body: GitHubCreateIssueInterface) {
   try {
-    // TODO: Create Issue on GitHub
+    const res = await fetch(
+      `https://${config.public.PROJECT_ID}.api.deskree.com/api/v1/integrations/github/repos/${config.public.GITHUB_USERNAME}/feedback-tool/issues`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error("Error creating issue on GitHub");
+    }
   } catch (e: any) {
     console.error(e);
     showError.value = true;
@@ -82,8 +114,8 @@ async function sendFeedback() {
       message: message.value,
     };
 
-    if (message.value === '') {
-      throw new Error('Message is required');
+    if (message.value === "") {
+      throw new Error("Message is required");
     }
 
     if (image !== undefined) {
@@ -93,17 +125,17 @@ async function sendFeedback() {
     await createFeedback(feedbackBody);
     if (showError.value) return;
 
-    if (props.feedback.type === 'bug') {
+    if (props.feedback.type === "bug") {
       const gitHubBody: GitHubCreateIssueInterface = {
-        title: 'Bug Found by User',
+        title: "Bug Found by User",
         body: message.value,
       };
 
       await createIssueOnGitHub(gitHubBody);
       if (showError.value) return;
     }
-    message.value = '';
-    emit('success');
+    message.value = "";
+    emit("success");
   } catch (e: any) {
     console.error(e);
     showError.value = true;
