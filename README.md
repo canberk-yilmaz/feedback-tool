@@ -9,6 +9,7 @@
 <h1 align="center">Deskree DB Preview</h1>
   <img alt="Feedback Tool" src="src/assets/DeskreeScreenshot.png" width="100%">
 </p>
+
 ## ✨ Technologies
 
 This project was made by using:
